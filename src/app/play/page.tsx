@@ -1252,7 +1252,7 @@ function PlayPageClient() {
     const art: any = new Artplayer({
       container: artRef.current,
       url: videoUrl,
-      title: `${videoTitle} - 第${currentEpisodeIndex + 1}集`,
+      //title: `${videoTitle} - 第${currentEpisodeIndex + 1}集`,
       poster: videoCover,
       volume: lastVolumeRef.current,
       autoplay: false,
