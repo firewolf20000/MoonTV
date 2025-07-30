@@ -384,7 +384,7 @@ export default function VideoCard({
       <div
         id="verifyModal"
         className={`modal fade ${showVerifyModal ? 'show' : ''}`}
-        tabIndex="-1"
+        tabIndex={-1}
         aria-hidden="true"
       >
         <div className="modal-dialog modal-dialog-centered modal-md">
