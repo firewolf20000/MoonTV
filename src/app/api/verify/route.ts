@@ -5,7 +5,7 @@ import { getCacheTime } from '@/lib/config';
 
 export const runtime = 'edge';
 
-// 验证码验证API
+// 验证码验证API 
 const VERIFY_URL = "https://fc-mp-ae2d32e9-36f6-4046-8883-65a6c1860f4e.next.bspapp.com/checkVerificationCode?code=";
 
 export async function POST(request: Request) {
