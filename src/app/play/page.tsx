@@ -27,7 +27,7 @@ import { getVideoResolutionFromM3u8, processImageUrl } from '@/lib/utils';
 import EpisodeSelector from '@/components/EpisodeSelector';
 import PageLayout from '@/components/PageLayout';
 
-// 扩展 HTMLVideoElement 类型以支持 hls 属性 
+// 扩展 HTMLVideoElement 类型以支持 hls 属性
 declare global {
   interface HTMLVideoElement {
     hls?: any;
@@ -38,15 +38,6 @@ function PlayPageClient() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // -----------------------------------------------------------------------------
-  // 新增：验证相关状态
-  // -----------------------------------------------------------------------------
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verifyCode, setVerifyCode] = useState('');
-  const [verifyCodeError, setVerifyCodeError] = useState('');
-  const [isVerified, setIsVerified] = useState(false);
-  const verifyTimerRef = useRef<NodeJS.Timeout | null>(null);
-  
   // -----------------------------------------------------------------------------
   // 状态变量（State）
   // -----------------------------------------------------------------------------
@@ -197,71 +188,6 @@ function PlayPageClient() {
 
   const artPlayerRef = useRef<any>(null);
   const artRef = useRef<HTMLDivElement | null>(null);
-
-  // ---------------------------------------------------------------------------
-  // 新增：验证相关函数
-  // ---------------------------------------------------------------------------
-  const handleVerifySubmit = async () => {
-    if (verifyCode.length !== 8) {
-      setVerifyCodeError('请输入8位验证码');
-      return;
-    }
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: verifyCode }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShowVerifyModal(false);
-        setIsVerified(true);
-        setVerifyCode('');
-        // 验证成功后恢复播放
-        if (artPlayerRef.current) {
-          artPlayerRef.current.play();
-        }
-      } else {
-        setVerifyCodeError(data.message || '验证码无效');
-      }
-    } catch (error) {
-      console.error('验证服务请求失败:', error);
-      setVerifyCodeError('验证服务连接失败');
-    }
-  };
-
-  // 设置随机时间显示验证窗口（3-6分钟）
-  const setupVerificationTimer = () => {
-    // 如果已经验证通过或定时器已存在，则不重复设置
-    if (isVerified || verifyTimerRef.current) return;
-    
-    // 生成3-6分钟之间的随机时间（毫秒）
-    const minDelay = 3 * 60 * 1000; // 3分钟
-    const maxDelay = 6 * 60 * 1000; // 6分钟
-    const randomDelay = minDelay + Math.random() * (maxDelay - minDelay);
-    
-    verifyTimerRef.current = setTimeout(() => {
-      // 显示验证窗口前暂停视频
-      if (artPlayerRef.current) {
-        artPlayerRef.current.pause();
-      }
-      setShowVerifyModal(true);
-      setVerifyCode('');
-      setVerifyCodeError('');
-    }, randomDelay);
-  };
-
-  // 清理验证定时器
-  const clearVerificationTimer = () => {
-    if (verifyTimerRef.current) {
-      clearTimeout(verifyTimerRef.current);
-      verifyTimerRef.current = null;
-    }
-  };
 
   // -----------------------------------------------------------------------------
   // 工具函数（Utils）
@@ -870,13 +796,6 @@ function PlayPageClient() {
       setCurrentId(newId);
       setDetail(newDetail);
       setCurrentEpisodeIndex(targetIndex);
-      
-      // 换源后重置验证状态，重新计时
-      setIsVerified(false);
-      clearVerificationTimer();
-      if (!loading) {
-        setupVerificationTimer();
-      }
     } catch (err) {
       // 隐藏换源加载状态
       setIsVideoLoading(false);
@@ -890,18 +809,6 @@ function PlayPageClient() {
       document.removeEventListener('keydown', handleKeyboardShortcuts);
     };
   }, []);
-
-  // 新增：页面加载完成后设置验证定时器
-  useEffect(() => {
-    if (!loading && !isVerified) {
-      setupVerificationTimer();
-    }
-    
-    // 组件卸载时清理定时器
-    return () => {
-      clearVerificationTimer();
-    };
-  }, [loading, isVerified]);
 
   // ---------------------------------------------------------------------------
   // 集数切换
@@ -944,18 +851,6 @@ function PlayPageClient() {
   // ---------------------------------------------------------------------------
   // 处理全局快捷键
   const handleKeyboardShortcuts = (e: KeyboardEvent) => {
-    // 验证窗口显示时，除了输入验证码相关，禁用其他快捷键
-    if (showVerifyModal) {
-      // 只允许在输入框中输入
-      if ((e.target as HTMLElement).tagName !== 'INPUT') {
-        // 允许Enter键提交验证
-        if (e.key !== 'Enter') {
-          e.preventDefault();
-        }
-      }
-      return;
-    }
-
     // 忽略输入框中的按键事件
     if (
       (e.target as HTMLElement).tagName === 'INPUT' ||
@@ -1774,310 +1669,172 @@ function PlayPageClient() {
                   strokeLinejoin='round'
                   strokeWidth='2'
                   d='M9 5l7 7-7 7'
-                >
+                />
               </svg>
-              <span className='text-xs text-gray-600 dark:text-gray-300 group-hover:opacity-100 opacity-80 transition-opacity duration-200'>
-                {isEpisodeSelectorCollapsed ? '显示选集' : '隐藏选集'}
+              <span className='text-xs font-medium text-gray-600 dark:text-gray-300'>
+                {isEpisodeSelectorCollapsed ? '显示' : '隐藏'}
               </span>
+
+              {/* 精致的状态指示点 */}
+              <div
+                className={`absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full transition-all duration-200 ${
+                  isEpisodeSelectorCollapsed
+                    ? 'bg-orange-400 animate-pulse'
+                    : 'bg-green-400'
+                }`}
+              ></div>
             </button>
           </div>
 
-          {/* 播放器容器 */}
-          <div className='relative bg-black rounded-xl overflow-hidden shadow-2xl'>
-            {/* 视频加载状态 */}
-            {isVideoLoading && (
-              <div className='absolute inset-0 bg-black/60 z-10 flex items-center justify-center'>
-                <div className='text-center'>
-                  <div className='inline-block p-3 bg-black/70 rounded-full mb-3'>
-                    <div className='w-12 h-12 border-4 border-green-500 border-t-transparent rounded-full animate-spin'></div>
-                  </div>
-                  <p className='text-white font-medium'>
-                    {videoLoadingStage === 'initing'
-                      ? '正在准备播放...'
-                      : '正在切换播放源...'}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {/* 视频容器 */}
-            <div
-              ref={artRef}
-              className='w-full aspect-video bg-black relative overflow-hidden'
-            ></div>
-
-            {/* 控制栏 */}
-            <div className='absolute bottom-0 left-0 right-0 p-3 bg-gradient-to-t from-black/80 to-transparent z-10'>
-              <div className='flex items-center justify-between'>
-                {/* 左侧：标题和选集导航 */}
-                <div className='flex items-center space-x-3'>
-                  <button
-                    onClick={handlePreviousEpisode}
-                    className={`p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors ${
-                      detail?.episodes?.length && currentEpisodeIndex === 0
-                        ? 'opacity-50 cursor-not-allowed'
-                        : ''
-                    }`}
-                    disabled={
-                      !(detail?.episodes?.length && currentEpisodeIndex > 0)
-                    }
-                  >
-                    <svg
-                      width='20'
-                      height='20'
-                      viewBox='0 0 24 24'
-                      fill='none'
-                      xmlns='http://www.w3.org/2000/svg'
-                    >
-                      <path
-                        d='M15 18l-6-6 6-6'
-                        stroke='currentColor'
-                        strokeWidth='2'
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                      ></path>
-                    </svg>
-                  </button>
-
-                  <div className='text-white text-sm font-medium truncate'>
-                    {videoTitle || '影片标题'}
-                    {totalEpisodes > 1 && (
-                      <span className='text-white/70'>
-                        {` - 第 ${currentEpisodeIndex + 1}/${totalEpisodes} 集`}
-                      </span>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={handleNextEpisode}
-                    className={`p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors ${
-                      detail?.episodes?.length &&
-                      currentEpisodeIndex >= detail.episodes.length - 1
-                        ? 'opacity-50 cursor-not-allowed'
-                        : ''
-                    }`}
-                    disabled={
-                      !(
-                        detail?.episodes?.length &&
-                        currentEpisodeIndex < detail.episodes.length - 1
-                      )
-                    }
-                  >
-                    <svg
-                      width='20'
-                      height='20'
-                      viewBox='0 0 24 24'
-                      fill='none'
-                      xmlns='http://www.w3.org/2000/svg'
-                    >
-                      <path
-                        d='M9 18l6-6-6-6'
-                        stroke='currentColor'
-                        strokeWidth='2'
-                        strokeLinecap='round'
-                        strokeLinejoin='round'
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
-
-                {/* 右侧：收藏和选集按钮 */}
-                <div className='flex items-center space-x-2'>
-                  <button
-                    onClick={handleToggleFavorite}
-                    className='p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors'
-                  >
-                    <Heart
-                      className={`w-5 h-5 ${
-                        favorited ? 'text-red-500' : 'text-white/70'
-                      }`}
-                    />
-                  </button>
-
-                  {/* 选集按钮 - 仅在 sm 及以下屏幕显示 */}
-                  <button
-                    onClick={() =>
-                      setIsEpisodeSelectorCollapsed(
-                        !isEpisodeSelectorCollapsed
-                      )
-                    }
-                    className='lg:hidden p-2 rounded-full text-white/80 hover:text-white hover:bg-white/10 transition-colors'
-                  >
-                    <svg
-                      width='20'
-                      height='20'
-                      viewBox='0 0 24 24'
-                      fill='none'
-                      xmlns='http://www.w3.org/2000/svg'
-                    >
-                      <path
-                        d='M4 6h16M4 12h16M4 18h16'
-                        stroke='currentColor'
-                        strokeWidth='2'
-                        strokeLinecap='round'
-                      ></path>
-                    </svg>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* 选集面板 */}
           <div
-            className={`${
-              isEpisodeSelectorCollapsed ? 'hidden' : 'block'
-            } lg:block bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg`}
+            className={`grid gap-4 lg:h-[500px] xl:h-[650px] 2xl:h-[750px] transition-all duration-300 ease-in-out ${
+              isEpisodeSelectorCollapsed
+                ? 'grid-cols-1'
+                : 'grid-cols-1 md:grid-cols-4'
+            }`}
           >
-            <EpisodeSelector
-              sources={availableSources}
-              currentSource={currentSource}
-              currentId={currentId}
-              currentEpisodeIndex={currentEpisodeIndex}
-              onEpisodeChange={handleEpisodeChange}
-              onSourceChange={handleSourceChange}
-              precomputedVideoInfo={precomputedVideoInfo}
-            />
-          </div>
-        </div>
-
-        {/* 第三行：影片信息和简介 */}
-        <div className='bg-white dark:bg-gray-800 rounded-xl p-4 shadow-lg'>
-          <div className='flex flex-col md:flex-row gap-4'>
-            {/* 左侧：影片封面 */}
-            <div className='w-full md:w-48 flex-shrink-0'>
-              <img
-                src={videoCover || '/placeholder.png'}
-                alt={`${videoTitle} 封面`}
-                className='w-full h-auto rounded-lg shadow-md object-cover'
-              />
-            </div>
-
-            {/* 右侧：影片信息 */}
-            <div className='flex-1'>
-              <div className='flex flex-wrap gap-2 mb-3'>
-                <span className='px-3 py-1 bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 rounded-full text-sm font-medium'>
-                  {detail?.type || '未知类型'}
-                </span>
-                <span className='px-3 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400 rounded-full text-sm font-medium'>
-                  {videoYear || '未知年份'}
-                </span>
-                <span className='px-3 py-1 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-400 rounded-full text-sm font-medium'>
-                  {detail?.source_name || '未知来源'}
-                </span>
-              </div>
-
-              <div className='space-y-3 text-gray-700 dark:text-gray-300'>
-                <div className='flex items-center gap-2'>
-                  <span className='font-medium text-gray-900 dark:text-gray-100'>
-                    导演:
-                  </span>
-                  <span>{detail?.director || '未知'}</span>
-                </div>
-
-                <div className='flex items-center gap-2'>
-                  <span className='font-medium text-gray-900 dark:text-gray-100'>
-                    主演:
-                  </span>
-                  <span className='truncate'>
-                    {detail?.actors?.join('、') || '未知'}
-                  </span>
-                </div>
-
-                <div className='flex items-center gap-2'>
-                  <span className='font-medium text-gray-900 dark:text-gray-100'>
-                    总集数:
-                  </span>
-                  <span>{detail?.episodes?.length || 0} 集</span>
-                </div>
-
-                <div className='flex items-center gap-2'>
-                  <span className='font-medium text-gray-900 dark:text-gray-100'>
-                    简介:
-                  </span>
-                  <p className='text-sm line-clamp-3'>
-                    {detail?.description || '暂无简介'}
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* 新增：验证弹窗 */}
-      <div
-        className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center ${
-          showVerifyModal ? 'opacity-100 visible' : 'opacity-0 invisible'
-        } transition-all duration-300`}
-        style={showVerifyModal ? {} : { pointerEvents: 'none' }}
-      >
-        <div className='bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md mx-4 transform transition-all duration-300 ${
-          showVerifyModal ? 'scale-100' : 'scale-95'
-        }'>
-          <div className='bg-primary text-white rounded-t-xl p-4 flex justify-between items-center'>
-            <h3 className='text-lg font-bold'>请输入验证码</h3>
-            <button
-              onClick={() => setShowVerifyModal(false)}
-              className='text-white hover:text-gray-200 transition-colors'
+            {/* 播放器 */}
+            <div
+              className={`h-full transition-all duration-300 ease-in-out rounded-xl border border-white/0 dark:border-white/30 ${
+                isEpisodeSelectorCollapsed ? 'col-span-1' : 'md:col-span-3'
+              }`}
             >
-              <svg
-                width='20'
-                height='20'
-                viewBox='0 0 24 24'
-                fill='none'
-                xmlns='http://www.w3.org/2000/svg'
-              >
-                <path
-                  d='M18 6L6 18M6 6l12 12'
-                  stroke='currentColor'
-                  strokeWidth='2'
-                  strokeLinecap='round'
-                  strokeLinejoin='round'
-                ></path>
-              </svg>
-            </button>
-          </div>
+              <div className='relative w-full h-[300px] lg:h-full'>
+                <div
+                  ref={artRef}
+                  className='bg-black w-full h-full rounded-xl overflow-hidden shadow-lg'
+                ></div>
 
-          <div className='p-5'>
-            <div className='text-center mb-4'>
-              <img
-                src="http://112.126.81.141:3100/xcx.png"
-                alt="小程序二维码"
-                className="mx-auto max-w-[200px] h-[200px] border border-gray-200 dark:border-gray-700 object-contain rounded-lg"
-              />
+                {/* 换源加载蒙层 */}
+                {isVideoLoading && (
+                  <div className='absolute inset-0 bg-black/85 backdrop-blur-sm rounded-xl flex items-center justify-center z-[500] transition-all duration-300'>
+                    <div className='text-center max-w-md mx-auto px-6'>
+                      {/* 动画影院图标 */}
+                      <div className='relative mb-8'>
+                        <div className='relative mx-auto w-24 h-24 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl shadow-2xl flex items-center justify-center transform hover:scale-105 transition-transform duration-300'>
+                          <div className='text-white text-4xl'>🎬</div>
+                          {/* 旋转光环 */}
+                          <div className='absolute -inset-2 bg-gradient-to-r from-green-500 to-emerald-600 rounded-2xl opacity-20 animate-spin'></div>
+                        </div>
+
+                        {/* 浮动粒子效果 */}
+                        <div className='absolute top-0 left-0 w-full h-full pointer-events-none'>
+                          <div className='absolute top-2 left-2 w-2 h-2 bg-green-400 rounded-full animate-bounce'></div>
+                          <div
+                            className='absolute top-4 right-4 w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce'
+                            style={{ animationDelay: '0.5s' }}
+                          ></div>
+                          <div
+                            className='absolute bottom-3 left-6 w-1 h-1 bg-lime-400 rounded-full animate-bounce'
+                            style={{ animationDelay: '1s' }}
+                          ></div>
+                        </div>
+                      </div>
+
+                      {/* 换源消息 */}
+                      <div className='space-y-2'>
+                        <p className='text-xl font-semibold text-white animate-pulse'>
+                          {videoLoadingStage === 'sourceChanging'
+                            ? '🔄 切换播放源...'
+                            : '🔄 视频加载中...'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div className='mb-4'>
-              <label htmlFor="verifyCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                8位验证码
-              </label>
-              <input
-                type="text"
-                id="verifyCode"
-                className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-primary focus:border-primary dark:bg-gray-700 dark:text-white transition-all"
-                placeholder="请输入8位验证码"
-                value={verifyCode}
-                onChange={(e) => setVerifyCode(e.target.value)}
+            {/* 选集和换源 - 在移动端始终显示，在 lg 及以上可折叠 */}
+            <div
+              className={`h-[300px] lg:h-full md:overflow-hidden transition-all duration-300 ease-in-out ${
+                isEpisodeSelectorCollapsed
+                  ? 'md:col-span-1 lg:hidden lg:opacity-0 lg:scale-95'
+                  : 'md:col-span-1 lg:opacity-100 lg:scale-100'
+              }`}
+            >
+              <EpisodeSelector
+                totalEpisodes={totalEpisodes}
+                value={currentEpisodeIndex + 1}
+                onChange={handleEpisodeChange}
+                onSourceChange={handleSourceChange}
+                currentSource={currentSource}
+                currentId={currentId}
+                videoTitle={searchTitle || videoTitle}
+                availableSources={availableSources}
+                sourceSearchLoading={sourceSearchLoading}
+                sourceSearchError={sourceSearchError}
+                precomputedVideoInfo={precomputedVideoInfo}
               />
-              {verifyCodeError && (
-                <p className="text-red-500 text-sm mt-1">{verifyCodeError}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* 详情展示 */}
+        <div className='grid grid-cols-1 md:grid-cols-4 gap-4'>
+          {/* 文字区 */}
+          <div className='md:col-span-3'>
+            <div className='p-6 flex flex-col min-h-0'>
+              {/* 标题 */}
+              <h1 className='text-3xl font-bold mb-2 tracking-wide flex items-center flex-shrink-0 text-center md:text-left w-full'>
+                {videoTitle || '影片标题'}
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleToggleFavorite();
+                  }}
+                  className='ml-3 flex-shrink-0 hover:opacity-80 transition-opacity'
+                >
+                  <FavoriteIcon filled={favorited} />
+                </button>
+              </h1>
+
+              {/* 关键信息行 */}
+              <div className='flex flex-wrap items-center gap-3 text-base mb-4 opacity-80 flex-shrink-0'>
+                {detail?.class && (
+                  <span className='text-green-600 font-semibold'>
+                    {detail.class}
+                  </span>
+                )}
+                {(detail?.year || videoYear) && (
+                  <span>{detail?.year || videoYear}</span>
+                )}
+                {detail?.source_name && (
+                  <span className='border border-gray-500/60 px-2 py-[1px] rounded'>
+                    {detail.source_name}
+                  </span>
+                )}
+                {detail?.type_name && <span>{detail.type_name}</span>}
+              </div>
+              {/* 剧情简介 */}
+              {detail?.desc && (
+                <div
+                  className='mt-0 text-base leading-relaxed opacity-90 overflow-y-auto pr-2 flex-1 min-h-0 scrollbar-hide'
+                  style={{ whiteSpace: 'pre-line' }}
+                >
+                  {detail.desc}
+                </div>
               )}
             </div>
-
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              &nbsp;&nbsp;&nbsp;&nbsp;视频采集不易，请扫描上面的二维码，打开微信小程序，点击获取验证码来免费获取8位验证码，输入到这里验证即可继续观看。如果在微信里查看此页，可长按本页面，扫码进入小程序。
-            </p>
           </div>
 
-          <div className='px-5 pb-5 pt-0 flex justify-center'>
-            <button
-              id="submitVerify"
-              onClick={handleVerifySubmit}
-              className="px-6 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors font-medium"
-            >
-              验证
-            </button>
+          {/* 封面展示 */}
+          <div className='hidden md:block md:col-span-1 md:order-first'>
+            <div className='pl-0 py-4 pr-6'>
+              <div className='bg-gray-300 dark:bg-gray-700 aspect-[2/3] flex items-center justify-center rounded-xl overflow-hidden'>
+                {videoCover ? (
+                  <img
+                    src={processImageUrl(videoCover)}
+                    alt={videoTitle}
+                    className='w-full h-full object-cover'
+                  />
+                ) : (
+                  <span className='text-gray-600 dark:text-gray-400'>
+                    封面图片
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -2085,9 +1842,34 @@ function PlayPageClient() {
   );
 }
 
+// FavoriteIcon 组件
+const FavoriteIcon = ({ filled }: { filled: boolean }) => {
+  if (filled) {
+    return (
+      <svg
+        className='h-7 w-7'
+        viewBox='0 0 24 24'
+        xmlns='http://www.w3.org/2000/svg'
+      >
+        <path
+          d='M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z'
+          fill='#ef4444' /* Tailwind red-500 */
+          stroke='#ef4444'
+          strokeWidth='2'
+          strokeLinecap='round'
+          strokeLinejoin='round'
+        />
+      </svg>
+    );
+  }
+  return (
+    <Heart className='h-7 w-7 stroke-[1] text-gray-600 dark:text-gray-300' />
+  );
+};
+
 export default function PlayPage() {
   return (
-    <Suspense fallback={<div>加载中...</div>}>
+    <Suspense fallback={<div>Loading...</div>}>
       <PlayPageClient />
     </Suspense>
   );
