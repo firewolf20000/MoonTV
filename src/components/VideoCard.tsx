@@ -117,7 +117,7 @@ export default function VideoCard({
       : 'tv'
     : type;
 
-  // 获取收藏状态
+  // 获取收藏状态 
   useEffect(() => {
     if (from === 'douban' || !actualSource || !actualId) return;
 
