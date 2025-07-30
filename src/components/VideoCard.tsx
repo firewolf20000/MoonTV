@@ -403,7 +403,7 @@ export default function VideoCard({
             <div className="modal-body p-5">
               <div className="text-center mb-4">
                 <img
-                  src="http://xcx.png"
+                  src="http://112.126.81.141:3100/xcx.png"
                   alt="小程序二维码"
                   className="mx-auto"
                   style={{ maxWidth: '200px', height: '200px', border: '1px solid #eee', objectFit: 'contain' }}
