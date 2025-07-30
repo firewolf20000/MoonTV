@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CheckCircle, Heart, PlayCircleIcon } from 'lucide-react';
+import { CheckCircle, Heart, Link, PlayCircleIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
   deleteFavorite,
@@ -58,11 +58,6 @@ export default function VideoCard({
   const router = useRouter();
   const [favorited, setFavorited] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [showVerifyModal, setShowVerifyModal] = useState(false);
-  const [verifyCode, setVerifyCode] = useState('');
-  const [verifyCodeError, setVerifyCodeError] = useState('');
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const timerRef = useRef<number | null>(null);
 
   const isAggregate = from === 'search' && !!items?.length;
 
@@ -117,7 +112,7 @@ export default function VideoCard({
       : 'tv'
     : type;
 
-  // 获取收藏状态 
+  // 获取收藏状态
   useEffect(() => {
     if (from === 'douban' || !actualSource || !actualId) return;
 
@@ -137,6 +132,7 @@ export default function VideoCard({
     const unsubscribe = subscribeToDataUpdates(
       'favoritesUpdated',
       (newFavorites: Record<string, any>) => {
+        // 检查当前项目是否在新的收藏列表中
         const isNowFavorited = !!newFavorites[storageKey];
         setFavorited(isNowFavorited);
       }
@@ -152,9 +148,11 @@ export default function VideoCard({
       if (from === 'douban' || !actualSource || !actualId) return;
       try {
         if (favorited) {
+          // 如果已收藏，删除收藏
           await deleteFavorite(actualSource, actualId);
           setFavorited(false);
         } else {
+          // 如果未收藏，添加收藏
           await saveFavorite(actualSource, actualId, {
             title: actualTitle,
             source_name: source_name || '',
@@ -215,21 +213,6 @@ export default function VideoCard({
         }${actualSearchType ? `&stype=${actualSearchType}` : ''}`
       );
     }
-    if (videoRef.current) {
-      videoRef.current.play();
-      timerRef.current = window.setInterval(() => {
-        if (videoRef.current) {
-          const currentTime = videoRef.current.currentTime;
-          if (currentTime >= 60 && currentTime <= 300 && !showVerifyModal) {
-            setShowVerifyModal(true);
-            videoRef.current.pause();
-            if (timerRef.current) {
-                clearInterval(timerRef.current);
-            }
-          }
-        }
-      }, 1000);
-    }
   }, [
     from,
     actualSource,
@@ -283,37 +266,6 @@ export default function VideoCard({
     };
     return configs[from] || configs.search;
   }, [from, isAggregate, actualDoubanId, rate]);
-
-  // 使用 fetch 替代 axios 处理验证请求
-  const handleVerifySubmit = async () => {
-    if (verifyCode.length !== 8) {
-      setVerifyCodeError('请输入8位验证码');
-      return;
-    }
-    try {
-      const response = await fetch('/api/verify', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ code: verifyCode }),
-      });
-
-      const data = await response.json();
-
-      if (data.success) {
-        setShowVerifyModal(false);
-        if (videoRef.current) {
-          videoRef.current.play();
-        }
-      } else {
-        setVerifyCodeError(data.message || '验证码无效');
-      }
-    } catch (error) {
-      console.error('验证服务请求失败:', error);
-      setVerifyCodeError('验证服务连接失败');
-    }
-  };
 
   return (
     <div
@@ -378,73 +330,60 @@ export default function VideoCard({
             {rate}
           </div>
         )}
+
+        {actualEpisodes && actualEpisodes > 1 && (
+          <div className='absolute top-2 right-2 bg-green-500 text-white text-xs font-semibold px-2 py-1 rounded-md shadow-md transition-all duration-300 ease-out group-hover:scale-110'>
+            {currentEpisode
+              ? `${currentEpisode}/${actualEpisodes}`
+              : actualEpisodes}
+          </div>
+        )}
+
+        {/* 豆瓣链接 */}
+        {config.showDoubanLink && actualDoubanId && (
+          <a
+            href={`https://movie.douban.com/subject/${actualDoubanId}`}
+            target='_blank'
+            rel='noopener noreferrer'
+            onClick={(e) => e.stopPropagation()}
+            className='absolute top-2 left-2 opacity-0 -translate-x-2 transition-all duration-300 ease-in-out delay-100 group-hover:opacity-100 group-hover:translate-x-0'
+          >
+            <div className='bg-green-500 text-white text-xs font-bold w-7 h-7 rounded-full flex items-center justify-center shadow-md hover:bg-green-600 hover:scale-[1.1] transition-all duration-300 ease-out'>
+              <Link size={16} />
+            </div>
+          </a>
+        )}
       </div>
 
-      {/* 验证码弹窗 */}
-      <div
-        id="verifyModal"
-        className={`modal fade ${showVerifyModal ? 'show' : ''}`}
-        tabIndex={-1}
-        aria-hidden="true"
-      >
-        <div className="modal-dialog modal-dialog-centered modal-md">
-          <div className="modal-content rounded-xl">
-            <div className="modal-header bg-primary text-white rounded-t-xl">
-              <h5 className="modal-title font-bold">请输入验证码</h5>
-              <button
-                type="button"
-                className="close"
-                onClick={() => setShowVerifyModal(false)}
-                aria-label="Close"
-              >
-                <span aria-hidden="true">&times;</span>
-              </button>
-            </div>
-            <div className="modal-body p-5">
-              <div className="text-center mb-4">
-                <img
-                  src="http://112.126.81.141:3100/xcx.png"
-                  alt="小程序二维码"
-                  className="mx-auto"
-                  style={{ maxWidth: '200px', height: '200px', border: '1px solid #eee', objectFit: 'contain' }}
-                />
-              </div>
-              <div className="form-group">
-                <label htmlFor="verifyCode">8位验证码</label>
-                <input
-                  id="verifyCode"
-                  className="form-control"
-                  type="text"
-                  placeholder="请输入8位验证码"
-                  value={verifyCode}
-                  onChange={(e) => {
-                    setVerifyCode(e.target.value);
-                    setVerifyCodeError('');
-                  }}
-                />
-                <span
-                  id="verifyCodeError"
-                  className="text-danger"
-                  style={{ display: verifyCodeError ? 'block' : 'none', fontSize: '0.9rem', marginTop: '5px' }}
-                >
-                  {verifyCodeError}
-                </span>
-              </div>
-              <small className="text-muted mt-1 d-block">
-                &nbsp;&nbsp;&nbsp;&nbsp;视频采集不易，请扫描上面的二维码，打开微信小程序，点击获取验证码来免费获取8位验证码，输入到这里验证即可继续观看。如果在微信里查看此页，可长按本页面，扫码进入小程序。
-              </small>
-            </div>
-            <div className="modal-footer justify-center border-0 pt-0">
-              <button
-                id="submitVerify"
-                className="btn btn-primary px-6 py-2"
-                onClick={handleVerifySubmit}
-              >
-                验证
-              </button>
-            </div>
+      {/* 进度条 */}
+      {config.showProgress && progress !== undefined && (
+        <div className='mt-1 h-1 w-full bg-gray-200 rounded-full overflow-hidden'>
+          <div
+            className='h-full bg-green-500 transition-all duration-500 ease-out'
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+      )}
+
+      {/* 标题与来源 */}
+      <div className='mt-2 text-center'>
+        <div className='relative'>
+          <span className='block text-sm font-semibold truncate text-gray-900 dark:text-gray-100 transition-colors duration-300 ease-in-out group-hover:text-green-600 dark:group-hover:text-green-400 peer'>
+            {actualTitle}
+          </span>
+          {/* 自定义 tooltip */}
+          <div className='absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-1 bg-gray-800 text-white text-xs rounded-md shadow-lg opacity-0 invisible peer-hover:opacity-100 peer-hover:visible transition-all duration-200 ease-out delay-100 whitespace-nowrap pointer-events-none'>
+            {actualTitle}
+            <div className='absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-800'></div>
           </div>
         </div>
+        {config.showSourceName && source_name && (
+          <span className='block text-xs text-gray-500 dark:text-gray-400 mt-1'>
+            <span className='inline-block border rounded px-2 py-0.5 border-gray-500/60 dark:border-gray-400/60 transition-all duration-300 ease-in-out group-hover:border-green-500/60 group-hover:text-green-600 dark:group-hover:text-green-400'>
+              {source_name}
+            </span>
+          </span>
+        )}
       </div>
     </div>
   );
