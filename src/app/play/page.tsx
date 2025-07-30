@@ -1293,7 +1293,7 @@ function PlayPageClient() {
             alignItems: 'center',
             justifyContent: 'center',
             cursor: 'pointer',
-            zIndex: 5,
+            zIndex: '5',
           },
         },
       ],
