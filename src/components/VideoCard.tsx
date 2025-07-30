@@ -223,7 +223,9 @@ export default function VideoCard({
           if (currentTime >= 60 && currentTime <= 300 && !showVerifyModal) {
             setShowVerifyModal(true);
             videoRef.current.pause();
-            clearInterval(timerRef.current);
+            if (timerRef.current) {
+                clearInterval(timerRef.current);
+            }
           }
         }
       }, 1000);
@@ -401,7 +403,7 @@ export default function VideoCard({
             <div className="modal-body p-5">
               <div className="text-center mb-4">
                 <img
-                  src="/upload/xcx.png"
+                  src="http://xcx.png"
                   alt="小程序二维码"
                   className="mx-auto"
                   style={{ maxWidth: '200px', height: '200px', border: '1px solid #eee', objectFit: 'contain' }}
