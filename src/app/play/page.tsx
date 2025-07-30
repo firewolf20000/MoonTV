@@ -1774,7 +1774,7 @@ function PlayPageClient() {
                   strokeLinejoin='round'
                   strokeWidth='2'
                   d='M9 5l7 7-7 7'
-                ></path>
+                >
               </svg>
               <span className='text-xs text-gray-600 dark:text-gray-300 group-hover:opacity-100 opacity-80 transition-opacity duration-200'>
                 {isEpisodeSelectorCollapsed ? '显示选集' : '隐藏选集'}
