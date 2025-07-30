@@ -1,62 +1,95 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import https from 'https';
+
+import { getCacheTime } from '@/lib/config';
+
+export const runtime = 'edge';
 
 // 验证码验证API
 const VERIFY_URL = "https://fc-mp-ae2d32e9-36f6-4046-8883-65a6c1860f4e.next.bspapp.com/checkVerificationCode?code=";
 
-// 明确返回类型为 Promise<NextResponse>
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: Request) {
   const { code } = await request.json();
 
   if (!code || code.length !== 8) {
-    // 直接返回 NextResponse，类型明确
-    return NextResponse.json({ success: false, message: '请输入8位验证码' });
+    const cacheTime = await getCacheTime();
+    return NextResponse.json(
+      { success: false, message: '请输入8位验证码' },
+      {
+        headers: {
+          'Cache-Control': `public, max-age=${cacheTime}, s-maxage=${cacheTime}`,
+          'CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+          'Vercel-CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+        },
+      }
+    );
   }
 
   const url = VERIFY_URL + code;
 
-  // 使用 Promise 封装 HTTP 请求，确保返回 NextResponse
-  return new Promise<NextResponse>((resolve) => {
-    https.get(url, { rejectUnauthorized: false }, (apiRes) => {
-      let data = '';
-      apiRes.on('data', (chunk) => data += chunk);
-      apiRes.on('end', () => {
-        try {
-          const result = JSON.parse(data);
-          if (result.success && result.exists) {
-            resolve(
-              NextResponse.json({ 
-                success: true, 
-                message: '验证成功，可以继续观看', 
-                createTime: result.createTime 
-              })
-            );
-          } else {
-            resolve(
-              NextResponse.json({ 
-                success: false, 
-                message: result.message || '验证码无效' 
-              })
-            );
+  try {
+    const response = await new Promise<{ success: boolean; exists: boolean; message?: string; createTime?: string }>((resolve, reject) => {
+      https.get(url, { rejectUnauthorized: false }, (apiRes) => {
+        let data = '';
+        apiRes.on('data', (chunk) => data += chunk);
+        apiRes.on('end', () => {
+          try {
+            const result = JSON.parse(data);
+            resolve(result);
+          } catch (error) {
+            reject(error);
           }
-        } catch (error) {
-          console.error('解析API响应失败:', error);
-          resolve(
-            NextResponse.json({ 
-              success: false, 
-              message: '验证服务响应异常' 
-            })
-          );
-        }
+        });
+      }).on('error', (error) => {
+        reject(error);
       });
-    }).on('error', (error) => {
-      console.error('验证API请求失败:', error);
-      resolve(
-        NextResponse.json({ 
-          success: false, 
-          message: '验证服务连接失败' 
-        })
-      );
     });
-  });
+
+    const cacheTime = await getCacheTime();
+
+    if (response.success && response.exists) {
+      return NextResponse.json(
+        { 
+          success: true, 
+          message: '验证成功，可以继续观看', 
+          createTime: response.createTime 
+        },
+        {
+          headers: {
+            'Cache-Control': `public, max-age=${cacheTime}, s-maxage=${cacheTime}`,
+            'CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+            'Vercel-CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+          },
+        }
+      );
+    } else {
+      return NextResponse.json(
+        { 
+          success: false, 
+          message: response.message || '验证码无效' 
+        },
+        {
+          headers: {
+            'Cache-Control': `public, max-age=${cacheTime}, s-maxage=${cacheTime}`,
+            'CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+            'Vercel-CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+          },
+        }
+      );
+    }
+  } catch (error) {
+    console.error('验证API请求或解析响应失败:', error);
+    const cacheTime = await getCacheTime();
+    return NextResponse.json(
+      { error: '验证服务响应异常' },
+      { 
+        status: 500,
+        headers: {
+          'Cache-Control': `public, max-age=${cacheTime}, s-maxage=${cacheTime}`,
+          'CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+          'Vercel-CDN-Cache-Control': `public, s-maxage=${cacheTime}`,
+        },
+      }
+    );
+  }
 }
