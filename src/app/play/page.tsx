@@ -1227,7 +1227,7 @@ useEffect(() => {
         volume: 0.7,
         isLive: false,
         muted: false,
-        autoplay: isVerificationPassed, // 新增：仅验证通过后自动播放
+        autoplay:true, // 新增：仅验证通过后自动播放
         pip: true,
         autoSize: false,
         autoMini: false,
@@ -1730,7 +1730,7 @@ const VerifyModal = () => (
         <div className="modal-body p-6">
           <div className="text-center mb-6">
             <img
-              src="/upload/xcx.png"
+              src="http://112.126.81.141:3100/xcx.png"
               alt="小程序二维码"
               className="mx-auto rounded-lg border border-gray-200"
               style={{ maxWidth: '200px', height: '200px', objectFit: 'contain' }}
