@@ -1247,7 +1247,9 @@ function PlayPageClient() {
     setError(null);
 
     // 创建新的播放器实例
-    const art = new Artplayer({
+
+    
+    const art: any = new Artplayer({
       container: artRef.current,
       url: videoUrl,
       title: `${videoTitle} - 第${currentEpisodeIndex + 1}集`,
