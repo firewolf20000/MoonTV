@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { CheckCircle, Heart, Link, PlayCircleIcon } from 'lucide-react';
+import { CheckCircle, Heart, PlayCircleIcon } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
-import axios from 'axios';
 
 import {
   deleteFavorite,
@@ -138,7 +137,6 @@ export default function VideoCard({
     const unsubscribe = subscribeToDataUpdates(
       'favoritesUpdated',
       (newFavorites: Record<string, any>) => {
-        // 检查当前项目是否在新的收藏列表中
         const isNowFavorited = !!newFavorites[storageKey];
         setFavorited(isNowFavorited);
       }
@@ -154,11 +152,9 @@ export default function VideoCard({
       if (from === 'douban' || !actualSource || !actualId) return;
       try {
         if (favorited) {
-          // 如果已收藏，删除收藏
           await deleteFavorite(actualSource, actualId);
           setFavorited(false);
         } else {
-          // 如果未收藏，添加收藏
           await saveFavorite(actualSource, actualId, {
             title: actualTitle,
             source_name: source_name || '',
@@ -286,24 +282,33 @@ export default function VideoCard({
     return configs[from] || configs.search;
   }, [from, isAggregate, actualDoubanId, rate]);
 
+  // 使用 fetch 替代 axios 处理验证请求
   const handleVerifySubmit = async () => {
     if (verifyCode.length !== 8) {
       setVerifyCodeError('请输入8位验证码');
       return;
     }
     try {
-      const response = await axios.post('/api/verify', {
-        code: verifyCode,
+      const response = await fetch('/api/verify', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ code: verifyCode }),
       });
-      if (response.data.success) {
+
+      const data = await response.json();
+
+      if (data.success) {
         setShowVerifyModal(false);
         if (videoRef.current) {
           videoRef.current.play();
         }
       } else {
-        setVerifyCodeError(response.data.message);
+        setVerifyCodeError(data.message || '验证码无效');
       }
     } catch (error) {
+      console.error('验证服务请求失败:', error);
       setVerifyCodeError('验证服务连接失败');
     }
   };
