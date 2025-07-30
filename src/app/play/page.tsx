@@ -1269,7 +1269,7 @@ function PlayPageClient() {
       setting: true,
       theme: '#FF0000',
       moreVideoAttr: {
-        playsInline: true; 
+        playsInline: true,
         preload: 'auto',
       },
       plugins: [],
