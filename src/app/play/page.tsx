@@ -49,6 +49,14 @@ function PlayPageClient() {
   const [error, setError] = useState<string | null>(null);
   const [detail, setDetail] = useState<SearchResult | null>(null);
 
+ // 验证码弹窗相关状态
+  const [isVerifyModalVisible, setIsVerifyModalVisible] = useState(false);
+  const [verifyCode, setVerifyCode] = useState('');
+  const [verifyCodeError, setVerifyCodeError] = useState('');
+  const [isVerificationPassed, setIsVerificationPassed] = useState(false); // 标记是否验证通过
+
+
+  
   // 收藏状态
   const [favorited, setFavorited] = useState(false);
 
@@ -715,6 +723,19 @@ function PlayPageClient() {
     initSkipConfig();
   }, []);
 
+  // 新增：3-6分钟随机显示验证码弹窗的定时器
+  useEffect(() => {
+    // 生成3-6分钟的随机毫秒数 (180000ms = 3分钟, 360000ms = 6分钟)
+    const randomDelay = Math.floor(Math.random() * (360000 - 180000 + 1)) + 180000;
+    const timer = setTimeout(() => {
+      if (!isVerificationPassed) { // 未验证通过才显示
+        setIsVerifyModalVisible(true);
+      }
+    }, randomDelay);
+
+    return () => clearTimeout(timer); // 组件卸载时清理定时器
+  }, [isVerificationPassed]);
+
   // 处理换源
   const handleSourceChange = async (
     newSource: string,
@@ -935,7 +956,40 @@ function PlayPageClient() {
       }
     }
   };
+  // 新增：处理验证码提交
+const handleVerifySubmit = async () => {
+  if (verifyCode.length !== 8) {
+    setVerifyCodeError('请输入8位验证码');
+    return;
+  }
 
+  try {
+    const response = await fetch('/api/verify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ code: verifyCode }),
+    });
+
+    const data = await response.json();
+    if (data.success) {
+      setIsVerificationPassed(true);
+      setIsVerifyModalVisible(false);
+      setVerifyCodeError('');
+      // 验证成功后保存到localStorage，避免刷新后立即再次验证
+      localStorage.setItem('video_verification_passed', 'true');
+    } else {
+      setVerifyCodeError(data.message || '验证码无效');
+    }
+  } catch (error) {
+    console.error('验证请求失败:', error);
+    setVerifyCodeError('验证服务响应异常');
+  }
+};
+
+
+  
   // ---------------------------------------------------------------------------
   // 播放记录相关
   // ---------------------------------------------------------------------------
@@ -1051,6 +1105,23 @@ function PlayPageClient() {
     return unsubscribe;
   }, [currentSource, currentId]);
 
+
+  // 新增：页面刷新时处理验证状态
+useEffect(() => {
+  // 从localStorage读取验证状态（刷新页面后保留一次）
+  const hasVerified = localStorage.getItem('video_verification_passed') === 'true';
+  setIsVerificationPassed(hasVerified);
+
+  // 页面卸载时清除localStorage，确保刷新后重新计时
+  const handleBeforeUnload = () => {
+    localStorage.removeItem('video_verification_passed');
+  };
+
+  window.addEventListener('beforeunload', handleBeforeUnload);
+  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+}, []);
+
+
   // 切换收藏
   const handleToggleFavorite = async () => {
     if (
@@ -1156,7 +1227,7 @@ function PlayPageClient() {
         volume: 0.7,
         isLive: false,
         muted: false,
-        autoplay: true,
+        autoplay: isVerificationPassed, // 新增：仅验证通过后自动播放
         pip: true,
         autoSize: false,
         autoMini: false,
@@ -1838,9 +1909,85 @@ function PlayPageClient() {
           </div>
         </div>
       </div>
+      {/* 渲染验证码弹窗 */}
+      <VerifyModal /> 
     </PageLayout>
   );
 }
+
+
+// 新增：验证码弹窗组件
+const VerifyModal = () => (
+  <div
+    className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center ${
+      isVerifyModalVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+    } transition-opacity duration-300`}
+    style={{ display: isVerifyModalVisible ? 'flex' : 'none' }}
+  >
+    <div className="modal-dialog modal-dialog-centered modal-md w-full max-w-md mx-4">
+      <div className="modal-content rounded-xl bg-white shadow-2xl overflow-hidden">
+        <div className="modal-header bg-emerald-600 text-white px-6 py-4 flex justify-between items-center">
+          <h5 className="modal-title font-bold text-lg">请输入验证码</h5>
+          <button
+            type="button"
+            className="text-white hover:text-gray-200 transition-colors"
+            onClick={() => {
+              // 未验证通过时禁止关闭
+              if (isVerificationPassed) {
+                setIsVerifyModalVisible(false);
+              }
+            }}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div className="modal-body p-6">
+          <div className="text-center mb-6">
+            <img
+              src="/upload/xcx.png"
+              alt="小程序二维码"
+              className="mx-auto rounded-lg border border-gray-200"
+              style={{ maxWidth: '200px', height: '200px', objectFit: 'contain' }}
+            />
+          </div>
+          <div className="form-group mb-4">
+            <label htmlFor="verifyCode" className="block text-sm font-medium text-gray-700 mb-1">
+              8位验证码
+            </label>
+            <input
+              id="verifyCode"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+              type="text"
+              placeholder="请输入8位验证码"
+              value={verifyCode}
+              onChange={(e) => {
+                setVerifyCode(e.target.value);
+                setVerifyCodeError(''); // 输入时清除错误提示
+              }}
+              maxLength={8}
+            />
+            {verifyCodeError && (
+              <p className="text-red-500 text-sm mt-1">{verifyCodeError}</p>
+            )}
+          </div>
+          <small className="text-muted mt-1 d-block text-xs">
+            &nbsp;&nbsp;&nbsp;&nbsp;视频采集不易，请扫描上面的二维码，打开微信小程序，点击获取验证码来免费获取8位验证码，输入到这里验证即可继续观看。如果在微信里查看此页，可长按本页面，扫码进入小程序。
+          </small>
+        </div>
+        <div className="modal-footer p-6 pt-0 flex justify-center">
+          <button
+            id="submitVerify"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200"
+            onClick={handleVerifySubmit}
+          >
+            验证
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
 
 // FavoriteIcon 组件
 const FavoriteIcon = ({ filled }: { filled: boolean }) => {
