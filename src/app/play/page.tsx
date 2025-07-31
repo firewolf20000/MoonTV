@@ -1702,8 +1702,9 @@ useEffect(() => {
 
 
   
-// 新增：验证码弹窗组件
-const VerifyModal = () => (
+//新增：验证码弹窗组件
+//const VerifyModal = () => (
+const VerifyModal = React.memo(() => (  
   <div
     className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center ${
       isVerifyModalVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
@@ -1742,6 +1743,7 @@ const VerifyModal = () => (
             </label>
             <input
               id="verifyCode"
+              key="verify-code-input" // 添加固定key，确保DOM节点身份不变
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
               type="text"
               placeholder="请输入8位验证码"
@@ -1772,7 +1774,8 @@ const VerifyModal = () => (
       </div>
     </div>
   </div>
-);
+//);
+));  
 
 
   
