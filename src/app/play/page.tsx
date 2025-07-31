@@ -976,7 +976,7 @@ const handleVerifySubmit = async () => {
     if (data.success) {
       setIsVerificationPassed(true);
       setIsVerifyModalVisible(false);
-      setVerifyCodeError('');
+      setVerifyCodeError('验证成功，可以观看');
       // 验证成功后保存到localStorage，避免刷新后立即再次验证
       localStorage.setItem('video_verification_passed', 'true');
     } else {
