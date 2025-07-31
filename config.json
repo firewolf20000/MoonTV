@@ -81,6 +81,11 @@
       "api": "https://cj.lziapi.com/api.php/provide/vod",
       "name": "量子资源站"
     },
+    "firewolf": {
+      "api": "https://json.15115656.xyz/api.php/provide/vod",
+      "name": "火狼",
+      "detail": "https://json.15115656.xyz"
+    },
     "xiaomaomi": {
       "api": "https://zy.xmm.hk/api.php/provide/vod",
       "name": "小猫咪资源"
