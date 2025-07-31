@@ -1730,7 +1730,7 @@ const VerifyModal = () => (
         <div className="modal-body p-6">
           <div className="text-center mb-6">
             <img
-              src="public/wx_xcx.png"
+              src="wx_xcx.png"
               alt="小程序二维码"
               className="mx-auto rounded-lg border border-gray-200"
               style={{ maxWidth: '200px', height: '200px', objectFit: 'contain' }}
