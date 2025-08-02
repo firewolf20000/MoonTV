@@ -37,16 +37,25 @@ declare global {
 
 
 //新增：验证码弹窗组件
-// 独立验证码弹窗组件（使用React.memo优化）
+// 在导入语句下方添加接口定义
+interface VerifyModalProps {
+  isVisible: boolean;
+  verifyCode: string;
+  verifyCodeError: string;
+  onCodeChange: (value: string) => void;
+  onVerify: () => void;
+  onClose: () => void;
+}
+
+// 独立验证码弹窗组件（带类型定义）
 const VerifyModal = memo(({
   isVisible,
   verifyCode,
   verifyCodeError,
   onCodeChange,
   onVerify,
-  isVerificationPassed,
   onClose
-}) => (
+}: VerifyModalProps) => (
   <div
     className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center ${
       isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
