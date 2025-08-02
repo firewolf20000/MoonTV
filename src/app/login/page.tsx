@@ -78,6 +78,18 @@ function LoginPageClient() {
   const [enableRegister, setEnableRegister] = useState(false);
   const { siteName } = useSite();
 
+
+
+   // 新增：组件挂载后立即跳转
+  useEffect(() => {
+    // 获取跳转地址（默认首页）
+    const redirect = searchParams.get('redirect') || '/';
+    // 强制跳转到目标页面
+    router.replace(redirect);
+  }, [router, searchParams]);
+
+
+  
   // 在客户端挂载后设置配置
   useEffect(() => {
     if (typeof window !== 'undefined') {
