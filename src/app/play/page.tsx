@@ -2020,7 +2020,7 @@ useEffect(() => {
       // 传递验证按钮的点击事件
       onVerify={handleVerifySubmit}
       // 传递是否验证通过的状态
-      isVerificationPassed={isVerificationPassed}
+      //isVerificationPassed={isVerificationPassed}
       // 传递关闭按钮的回调函数
       onClose={() => {
         // 只有验证通过后才能关闭弹窗
