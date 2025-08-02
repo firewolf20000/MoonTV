@@ -1048,8 +1048,9 @@ const handleVerifySubmit = async () => {
     setVerifyCodeError('请输入8位验证码');
     return;
   }
-
+   
   try {
+    setVerifyCodeError('开始连接服务器，验证验证码');
     const response = await fetch('/api/verify', {
       method: 'POST',
       headers: {
