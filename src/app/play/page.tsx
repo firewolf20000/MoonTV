@@ -6,8 +6,8 @@ import Artplayer from 'artplayer';
 import Hls from 'hls.js';
 import { Heart } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
 
+import { Suspense, useEffect, useRef, useState, memo } from 'react';
 import {
   deleteFavorite,
   deletePlayRecord,
@@ -33,6 +33,82 @@ declare global {
     hls?: any;
   }
 }
+
+
+//新增：验证码弹窗组件
+// 独立验证码弹窗组件（使用React.memo优化）
+const VerifyModal = React.memo(({
+  isVisible,
+  verifyCode,
+  verifyCodeError,
+  onCodeChange,
+  onVerify,
+  isVerificationPassed,
+  onClose
+}) => (
+  <div
+    className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center ${
+      isVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+    } transition-opacity duration-300`}
+    style={{ display: isVisible ? 'flex' : 'none' }}
+  >
+    <div className="modal-dialog modal-dialog-centered modal-md w-full max-w-md mx-4">
+      <div className="modal-content rounded-xl bg-white shadow-2xl overflow-hidden">
+        <div className="modal-header bg-emerald-600 text-white px-6 py-4 flex justify-between items-center">
+          <h5 className="modal-title font-bold text-lg">请输入验证码</h5>
+          <button
+            type="button"
+            className="text-white hover:text-gray-200 transition-colors"
+            onClick={onClose}
+          >
+            <span aria-hidden="true">&times;</span>
+          </button>
+        </div>
+        <div className="modal-body p-6">
+          <div className="text-center mb-6">
+            <img
+              src="wx_xcx.png"
+              alt="小程序二维码"
+              className="mx-auto rounded-lg border border-gray-200"
+              style={{ maxWidth: '200px', height: '200px', objectFit: 'contain' }}
+            />
+          </div>
+          <div className="form-group mb-4">
+            <label htmlFor="verifyCode" className="block text-sm font-medium text-gray-700 mb-1">
+              8位验证码
+            </label>
+            <input
+              id="verifyCode"
+              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
+              type="text"
+              placeholder="请输入8位验证码"
+              value={verifyCode}
+              onChange={(e) => onCodeChange(e.target.value)}
+              maxLength={8}
+            />
+            {verifyCodeError && (
+              <p className="text-red-500 text-sm mt-1">{verifyCodeError}</p>
+            )}
+          </div>
+          <small className="text-muted mt-1 d-block text-xs">
+            &nbsp;&nbsp;&nbsp;&nbsp;视频采集不易，请扫描上面的二维码，打开微信小程序，点击获取验证码来免费获取8位验证码，输入到这里验证即可继续观看。如果在微信里查看此页，可长按本页面，扫码进入小程序。
+          </small>
+        </div>
+        <div className="modal-footer p-6 pt-0 flex justify-center">
+          <button
+            id="submitVerify"
+            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200"
+            onClick={onVerify}
+          >
+            验证
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+));
+
+
 
 function PlayPageClient() {
   const router = useRouter();
@@ -1702,79 +1778,7 @@ useEffect(() => {
 
 
   
-//新增：验证码弹窗组件
-const VerifyModal = () => (
 
-  <div
-    className={`fixed inset-0 bg-black/70 z-50 flex items-center justify-center ${
-      isVerifyModalVisible ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-    } transition-opacity duration-300`}
-    style={{ display: isVerifyModalVisible ? 'flex' : 'none' }}
-  >
-    <div className="modal-dialog modal-dialog-centered modal-md w-full max-w-md mx-4">
-      <div className="modal-content rounded-xl bg-white shadow-2xl overflow-hidden">
-        <div className="modal-header bg-emerald-600 text-white px-6 py-4 flex justify-between items-center">
-          <h5 className="modal-title font-bold text-lg">请输入验证码</h5>
-          <button
-            type="button"
-            className="text-white hover:text-gray-200 transition-colors"
-            onClick={() => {
-              // 未验证通过时禁止关闭
-              if (isVerificationPassed) {
-                setIsVerifyModalVisible(false);
-              }
-            }}
-          >
-            <span aria-hidden="true">&times;</span>
-          </button>
-        </div>
-        <div className="modal-body p-6">
-          <div className="text-center mb-6">
-            <img
-              src="wx_xcx.png"
-              alt="小程序二维码"
-              className="mx-auto rounded-lg border border-gray-200"
-              style={{ maxWidth: '200px', height: '200px', objectFit: 'contain' }}
-            />
-          </div>
-          <div className="form-group mb-4">
-            <label htmlFor="verifyCode" className="block text-sm font-medium text-gray-700 mb-1">
-              8位验证码
-            </label>
-            <input
-              id="verifyCode"
-              key="verify-code-input" // 添加固定key，确保DOM节点身份不变
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 transition-colors"
-              type="text"
-              placeholder="请输入8位验证码"
-              value={verifyCode}
-              onChange={(e) => {
-                setVerifyCode(e.target.value);
-                setVerifyCodeError(''); // 输入时清除错误提示
-              }}
-              maxLength={8}
-            />
-            {verifyCodeError && (
-              <p className="text-red-500 text-sm mt-1">{verifyCodeError}</p>
-            )}
-          </div>
-          <small className="text-muted mt-1 d-block text-xs">
-            &nbsp;&nbsp;&nbsp;&nbsp;视频采集不易，请扫描上面的二维码，打开微信小程序，点击获取验证码来免费获取8位验证码，输入到这里验证即可继续观看。如果在微信里查看此页，可长按本页面，扫码进入小程序。
-          </small>
-        </div>
-        <div className="modal-footer p-6 pt-0 flex justify-center">
-          <button
-            id="submitVerify"
-            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-2.5 px-4 rounded-lg transition-colors duration-200"
-            onClick={handleVerifySubmit}
-          >
-            验证
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-);
 
 
 
@@ -1991,7 +1995,30 @@ const VerifyModal = () => (
         </div>
       </div>
       {/* 渲染验证码弹窗 */}
-      <VerifyModal /> 
+      <VerifyModal
+      // 传递弹窗显示状态
+      isVisible={isVerifyModalVisible}
+      // 传递当前输入的验证码
+      verifyCode={verifyCode}
+      // 传递错误提示信息
+      verifyCodeError={verifyCodeError}
+      // 传递输入变化的回调函数（更新验证码）
+      onCodeChange={(value) => {
+        setVerifyCode(value); // 更新验证码
+        setVerifyCodeError(''); // 输入时清除错误
+      }}
+      // 传递验证按钮的点击事件
+      onVerify={handleVerifySubmit}
+      // 传递是否验证通过的状态
+      isVerificationPassed={isVerificationPassed}
+      // 传递关闭按钮的回调函数
+      onClose={() => {
+        // 只有验证通过后才能关闭弹窗
+        if (isVerificationPassed) {
+          setIsVerifyModalVisible(false);
+        }
+      }}
+    />
     </PageLayout>
   );
 }
