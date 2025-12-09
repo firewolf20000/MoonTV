@@ -69,6 +69,7 @@ export default async function RootLayout({
   return (
     <html lang='zh-CN' suppressHydrationWarning>
       <head>
+        <meta name="google-adsense-account" content="ca-pub-6390536918608039">
         <meta
           name='viewport'
           content='width=device-width, initial-scale=1.0, viewport-fit=cover'
